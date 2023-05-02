@@ -54,6 +54,41 @@ class PillarQueryAndGroup(nn.Module):
         return pillars, pillar_set_indices, group_features
 
 
+class FGPillarQueryAndGroup(nn.Module):
+    def __init__(self, pillar_size, point_cloud_range):
+        super().__init__()
+
+        self.pillar_size = pillar_size
+        self.spatial_shape = bev_spatial_shape(point_cloud_range, pillar_size)
+        self.z_center = (point_cloud_range[5] + point_cloud_range[2]) / 2
+        self.point_cloud_range = point_cloud_range
+
+    def forward(self, xyz, xyz_batch_cnt, point_features, bxyz):
+        """ batch-wise operation
+        Args:
+            xyz: (N1+N2..., 3)  relative coordinates
+            xyz_batch_cnt: (N1+N2...)
+            point_features: (N1+N2..., C)
+        Return:
+            pillar_indices: indices for resulting sparse pillar tensor
+            group_features: (L1+L2..., C)
+        """
+        pillars, pillar_centers, indice_pairs = gen_indice_pairs(xyz, xyz_batch_cnt, self.pillar_size,
+                                                                 self.spatial_shape, self.z_center)
+
+        point_set_indices, pillar_set_indices = flatten_indices(indice_pairs)
+        group_point_features = gather_feature(point_features, point_set_indices)  # (L, C)
+        group_point_xyz = gather_feature(xyz, point_set_indices)  # (L, 3) [xyz]
+        group_point_bxyz = gather_feature(bxyz, point_set_indices)  # (L, 3) [xyz]
+
+        group_pillar_centers = gather_feature(pillar_centers, pillar_set_indices)  # (L, 3)  [xyz]
+        group_pillar_centers = group_point_xyz - group_pillar_centers
+
+        group_point_features = torch.cat([group_point_bxyz[:,:1].detach(),
+                                    group_pillar_centers.detach(), group_point_bxyz[:,1:].detach()], dim=1)
+        
+        return pillars, pillar_set_indices, group_point_features, group_point_bxyz, group_pillar_centers
+
 class GenPillarsIndices(Function):
     @staticmethod
     def forward(ctx, xyz:torch.Tensor, xyz_batch_cnt:torch.Tensor, bev_size, spatial_shape):

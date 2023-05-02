@@ -25,6 +25,12 @@ def drop_arrays_by_name(gt_names, used_classes):
     inds = np.array(inds, dtype=np.int64)
     return inds
 
+def mask_points_by_range(points, limit_range):
+    mask = (points[:, 0] >= limit_range[0]) & (points[:, 0] <= limit_range[3] - 0.1**5) \
+           & (points[:, 1] >= limit_range[1]) & (points[:, 1] <= limit_range[4] - 0.1**5) \
+             &  (points[:, 2] >= limit_range[2]) & (points[:, 2] <= limit_range[5] - 0.1**5)
+    return mask
+
 @PIPELINES.register_module
 class Preprocess(object):
     def __init__(self, cfg=None, **kwargs):
@@ -45,6 +51,7 @@ class Preprocess(object):
             self.npoints = cfg.get("npoints", -1)
 
         self.no_augmentation = cfg.get('no_augmentation', False)
+        self.point_cloud_range = cfg.get("range", None)
 
     def __call__(self, res, info):
 
@@ -158,6 +165,10 @@ class Preprocess(object):
 
         if self.mode == "train":
             res["lidar"]["annotations"] = gt_dict
+
+        if self.point_cloud_range is not None:
+            mask = mask_points_by_range(res['lidar']['points'], self.point_cloud_range)
+            res['lidar']['points'] = res['lidar']['points'][mask]
 
         return res, info
 

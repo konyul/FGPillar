@@ -1,0 +1,2 @@
+python3 -m torch.distributed.launch --nproc_per_node=4 ./tools/train.py configs/nusc/fgpillarnet/nusc_centerpoint_fppillarnet_h.py --work_dir ./work_dirs/nusc_centerpoint_fppillarnet_h --seed 0 --gpus 4
+python3 -m torch.distributed.launch --nproc_per_node=4 ./tools/dist_test.py configs/nusc/fgpillarnet/nusc_centerpoint_fppillarnet_h.py --checkpoint work_dirs/nusc_centerpoint_fppillarnet_h/epoch_20.pth --work_dir ./work_dirs/nusc_centerpoint_fppillarnet_h
