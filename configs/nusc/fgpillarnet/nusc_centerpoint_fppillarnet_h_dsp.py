@@ -48,28 +48,10 @@ model = dict(
             voxel_x=pillar_size,
             voxel_y=pillar_size,
             bn_folding=bn_folding            
-            ),
-        zpillar_cfg=dict(
-            input_channel=32,
-            output_channel=32,
-            bn_folding=bn_folding,
-            num_bins=32)
+            )
     ),
     backbone=dict(
-        type="SpMiddleFGPillarEncoder18", in_planes=32, ds_factor=8,
-        zbam_cfg=dict(
-            zbam='Zconv',
-            input_channel=32,
-            feat_channel=32,
-            output_channel=32,
-            encoder_level=[2],
-            max_points=10,
-            num_bins=40,
-            grid_size=grid_size,
-            bn_folding=bn_folding,
-            voxel_size=voxel_size,
-            point_cloud_range=pc_range
-            )),
+        type="SpMiddleFGPillarEncoder18", in_planes=32, ds_factor=8),
     neck=dict(
         type="RPNV2",
         layer_nums=[5, 5],

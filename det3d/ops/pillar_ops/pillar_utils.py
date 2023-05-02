@@ -83,11 +83,14 @@ class FGPillarQueryAndGroup(nn.Module):
 
         group_pillar_centers = gather_feature(pillar_centers, pillar_set_indices)  # (L, 3)  [xyz]
         group_pillar_centers = group_point_xyz - group_pillar_centers
-
+        
+        group_features = torch.cat([group_point_features.detach(), group_point_xyz.detach(),
+                                    group_pillar_centers.detach()], dim=1)
+        
         group_point_features = torch.cat([group_point_bxyz[:,:1].detach(),
                                     group_pillar_centers.detach(), group_point_bxyz[:,1:].detach()], dim=1)
         
-        return pillars, pillar_set_indices, group_point_features, group_point_bxyz, group_pillar_centers
+        return pillars, pillar_set_indices, group_features, group_point_features, group_point_bxyz, group_pillar_centers
 
 class GenPillarsIndices(Function):
     @staticmethod

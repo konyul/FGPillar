@@ -106,8 +106,8 @@ class DynamicFGPillarFeatureNet(nn.Module):
             mlps=num_filters,
             pillar_size=pillar_size,
             point_cloud_range=pc_range,
-            dsp_cfg=kwargs['dsp_cfg'],
-            zpillar_cfg=kwargs['zpillar_cfg']
+            dsp_cfg=kwargs.get("dsp_cfg", None),
+            zpillar_cfg=kwargs.get("zpillar_cfg",None)
         )
 
         self.virtual = virtual

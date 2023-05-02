@@ -141,8 +141,9 @@ class SpMiddleFGPillarEncoder18(nn.Module):
             'x_conv4': 8,
             'x_conv5': 16,
         }
-        self.zbam = kwargs['zbam_cfg']
-        self.zbam_model = build_zbam(self.zbam)
+        self.zbam = kwargs.get('zbam_cfg', None)
+        if self.zbam is not None:
+            self.zbam_model = build_zbam(self.zbam)
     
     def matching_idx(self, x_conv, data_dict, downsample_level):
         pair_bwd = x_conv.__dict__['indice_dict']['spconv'+str(downsample_level)].__dict__['pair_bwd']
@@ -154,8 +155,9 @@ class SpMiddleFGPillarEncoder18(nn.Module):
     def forward(self, sp_tensor, example):
         x_conv1 = self.conv1(sp_tensor)
         x_conv2 = self.conv2(x_conv1)
-        example = self.matching_idx(x_conv2, example, 2)
-        x_conv2 = self.zbam_model(x_conv2, example, 2, self.zbam)
+        if self.zbam is not None:
+            example = self.matching_idx(x_conv2, example, 2)
+            x_conv2 = self.zbam_model(x_conv2, example, 2, self.zbam)
         x_conv3 = self.conv3(x_conv2)
         x_conv4 = self.conv4(x_conv3)
         x_conv4 = x_conv4.dense()
