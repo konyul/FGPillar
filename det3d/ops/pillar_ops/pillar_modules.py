@@ -81,19 +81,27 @@ class FGPillarMaxPooling(nn.Module):
 
         self.init_weights(weight_init='xavier')
         self.point_cloud_range = torch.tensor(point_cloud_range).cuda()
+        self.dsp_cfg = dsp_cfg
+        self.voxel_size = torch.tensor([pillar_size,pillar_size,0.25]).cuda()
+        grid_size = torch.tensor([1440, 1440, 32]).cuda()
+        self.scale_xyz = grid_size[0] * grid_size[1] * grid_size[2]
+        self.scale_yz = grid_size[1] * grid_size[2]
+        self.scale_xy = grid_size[0] * grid_size[1]
+        self.scale_y = grid_size[1]
+        self.scale_z = grid_size[2]
         if dsp_cfg is not None:
-            self.dsp_cfg = dsp_cfg
-            pillar_size = dsp_cfg.voxel_size[0]
-            self.voxel_size = torch.tensor([pillar_size,pillar_size,0.25]).cuda()
-            grid_size = torch.tensor(dsp_cfg.grid_size).cuda()
-            self.scale_xyz = grid_size[0] * grid_size[1] * grid_size[2]
-            self.scale_yz = grid_size[1] * grid_size[2]
-            self.scale_xy = grid_size[0] * grid_size[1]
-            self.scale_y = grid_size[1]
-            self.scale_z = grid_size[2]
             self.dsp_model = build_dsp(dsp_cfg)
+        else:
+            shared_mlp = []
+            for k in range(len(mlps) - 1):
+                shared_mlp.extend([
+                    nn.Linear(mlps[k], mlps[k + 1], bias=False),
+                    nn.BatchNorm1d(mlps[k + 1], eps=1e-3, momentum=0.01),
+                    nn.ReLU()
+                ])
+            self.shared_mlps = nn.Sequential(*shared_mlp)
+        self.zpillar_cfg = zpillar_cfg
         if zpillar_cfg is not None:
-            self.zpillar_cfg = zpillar_cfg
             self.zpillar_model = build_mlp(zpillar_cfg, model_name='ZcCBAM')
         
 
@@ -154,8 +162,8 @@ class FGPillarMaxPooling(nn.Module):
         example['points_with_f_center'] = group_point_features
 
         example['points'] = group_point_bxyz
-        pillar_set_indices = pillar_set_indices.long()
-        example['unq_inv'] = pillar_set_indices
+        
+        example['unq_inv'] = pillar_set_indices.long()
         if self.zpillar_cfg is not None:            
             points_coords_3d = torch.floor((group_point_bxyz[:, 1:4] - self.point_cloud_range[0:3]) / self.voxel_size).int()
             example = self.dyn_voxelization(group_point_bxyz, points_coords_3d, example)
@@ -167,7 +175,7 @@ class FGPillarMaxPooling(nn.Module):
             example['v_feat_unq_cnt'] = v_feat_unq_cnt
             z_pillar_feat, occupied_mask = self.zpillar_model(example)
         if self.dsp_cfg is not None:
-            features = self.dsp_model(example, group_pillar_centers, pillar_set_indices)
+            features = self.dsp_model(example, group_pillar_centers, pillar_set_indices.long())
         else:
             group_features = self.shared_mlps(group_features)  # (1, C, L)
             group_features = group_features.transpose(1, 0).contiguous()
