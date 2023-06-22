@@ -89,7 +89,7 @@ class FGPillarQueryAndGroup(nn.Module):
         
         group_point_features = torch.cat([group_point_bxyz[:,:1].detach(),
                                     group_pillar_centers.detach(), group_point_bxyz[:,1:].detach()], dim=1)
-        
+        import pdb;pdb.set_trace()
         return pillars, pillar_set_indices, group_features, group_point_features, group_point_bxyz, group_pillar_centers
 
 class GenPillarsIndices(Function):

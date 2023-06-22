@@ -4,3 +4,6 @@ work_dirs
 **__pycache__
 .idea/
 **/*.so
+pillarnet_full_6194
+pillarnet_full_6709
+ckpt

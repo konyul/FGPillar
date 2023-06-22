@@ -154,12 +154,20 @@ class SpMiddleFGPillarEncoder18(nn.Module):
     
     def forward(self, sp_tensor, example):
         x_conv1 = self.conv1(sp_tensor)
+        if self.zbam and 1 in self.zbam.encoder_level:
+            x_conv1 = self.zbam_model(x_conv1, example, 1, self.zbam)
         x_conv2 = self.conv2(x_conv1)
-        if self.zbam is not None:
-            example = self.matching_idx(x_conv2, example, 2)
+        example = self.matching_idx(x_conv2, example, 2)
+        if self.zbam and 2 in self.zbam.encoder_level:
             x_conv2 = self.zbam_model(x_conv2, example, 2, self.zbam)
         x_conv3 = self.conv3(x_conv2)
+        example = self.matching_idx(x_conv3, example, 3)
+        if self.zbam and 3 in self.zbam.encoder_level:
+            x_conv3 = self.zbam_model(x_conv3, example, 3, self.zbam)
         x_conv4 = self.conv4(x_conv3)
+        example = self.matching_idx(x_conv4, example, 4)
+        if self.zbam and 4 in self.zbam.encoder_level:
+            x_conv4 = self.zbam_model(x_conv4, example, 4, self.zbam)
         x_conv4 = x_conv4.dense()
         x_conv5 = self.conv5(x_conv4)
         return dict(
