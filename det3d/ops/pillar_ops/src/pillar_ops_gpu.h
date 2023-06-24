@@ -7,17 +7,31 @@
 int create_pillar_indices_stack_wrapper(float bev_size, at::Tensor xyz_tensor, at::Tensor xyz_batch_cnt_tensor,
 										at::Tensor pillar_mask_tensor);
 
+int create_voxel_indices_stack_wrapper(float bev_size_x, float bev_size_z, at::Tensor xyz_tensor, at::Tensor xyz_batch_cnt_tensor,
+										at::Tensor pillar_mask_tensor);
+
 int create_pillar_indices_wrapper(at::Tensor bev_indices_tensor, at::Tensor pillar_indices_tensor);
+int create_voxel_indices_wrapper(at::Tensor bev_indices_tensor, at::Tensor voxel_indices_tensor);
 
 int create_pillar_indice_pairs_stack_wrapper(float bev_size, at::Tensor xyz_tensor, at::Tensor xyz_batch_cnt_tensor,
+											 at::Tensor pillar_bev_indices_tensor, at::Tensor indice_pairs_tensor);
+
+int create_voxel_indice_pairs_stack_wrapper(float bev_size_x, float bev_size_z, at::Tensor xyz_tensor, at::Tensor xyz_batch_cnt_tensor,
 											 at::Tensor pillar_bev_indices_tensor, at::Tensor indice_pairs_tensor);
 
 void create_pillar_indices_stack_kernel_launcher(int N, int B, int H, int W, float bev_size,
 												 const float *xyz, const int *xyz_batch_cnt, bool *pillar_mask);
 
+void create_voxel_indices_stack_kernel_launcher(int N, int B, int H, int W, int X, float bev_size_x, float bev_size_z,
+												 const float *xyz, const int *xyz_batch_cnt, bool *pillar_mask);
 void create_pillar_indices_kernel_launcher(int B, int H, int W, const int *bevIndices, int *pillarIndices);
+void create_voxel_indices_kernel_launcher(int B, int H, int W, int X, const int *bevIndices, int *voxelIndices);
 
 void create_pillar_indice_pairs_stack_kernel_launcher(int N, int B, int H, int W, float bev_size,
+													  const float *xyz, const int *xyz_batch_cnt,
+													  const int *pillar_bev_indices, int *indice_pairs);
+
+void create_voxel_indice_pairs_stack_kernel_launcher(int N, int B, int H, int W, int X, float bev_size_x, float bev_size_z,
 													  const float *xyz, const int *xyz_batch_cnt,
 													  const int *pillar_bev_indices, int *indice_pairs);
 

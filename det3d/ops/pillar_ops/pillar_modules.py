@@ -28,6 +28,10 @@ class PillarMaxPooling(nn.Module):
         self.shared_mlps = nn.Sequential(*shared_mlp)
 
         self.init_weights(weight_init='xavier')
+        grid_size = torch.tensor([1440,1440,32]).cuda()
+        self.scale_xy = grid_size[0] * grid_size[1]
+        self.scale_y = grid_size[1]
+        self.zpillar_model = build_mlp()
 
     def init_weights(self, weight_init='xavier'):
         if weight_init == 'kaiming':
@@ -48,7 +52,7 @@ class PillarMaxPooling(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
-    def forward(self, xyz, xyz_batch_cnt, pt_feature):
+    def forward(self, xyzt, xyz_batch_cnt, pt_feature):
         """
         Args:
             xyz: (N1+N2..., 3)
@@ -60,15 +64,32 @@ class PillarMaxPooling(nn.Module):
             pillar_features: (M, C)
         """
         B = xyz_batch_cnt.shape[0]
-        pillar_indices, pillar_set_indices, group_features = self.groups(xyz, xyz_batch_cnt, pt_feature)
+        batch_dict = {}
+        points_coords, unq_inv, features, voxel_features_coords, z_unq_inv, voxel_features, toxel_features_coords, t_unq_inv, toxel_features = self.groups(xyzt, xyz_batch_cnt, pt_feature)
+        voxel_features = torch_scatter.scatter_mean(voxel_features, z_unq_inv.long(), dim=0)
+        toxel_features = torch_scatter.scatter_mean(toxel_features, t_unq_inv.long(), dim=0)
+        batch_dict['voxel_features_coords'] = voxel_features_coords
+        v_feat_coords = voxel_features_coords[:, 0] * self.scale_xy + voxel_features_coords[:, 3] * self.scale_y + voxel_features_coords[:, 2]
+        v_feat_unq_coords, v_feat_unq_inv, v_feat_unq_cnt = torch.unique(v_feat_coords, return_inverse=True, return_counts=True, dim=0)
+        batch_dict['v_feat_unq_coords'] = v_feat_unq_coords
+        batch_dict['v_feat_unq_inv'] = v_feat_unq_inv
+        batch_dict['voxel_features'] = voxel_features
+        batch_dict['v_feat_unq_cnt'] = v_feat_unq_cnt
+        batch_dict['toxel_features_coords'] = toxel_features_coords
+        t_feat_coords = toxel_features_coords[:, 0] * self.scale_xy + toxel_features_coords[:, 3] * self.scale_y + toxel_features_coords[:, 2]
+        t_feat_unq_coords, t_feat_unq_inv, t_feat_unq_cnt = torch.unique(t_feat_coords, return_inverse=True, return_counts=True, dim=0)
+        batch_dict['t_feat_unq_coords'] = t_feat_unq_coords
+        batch_dict['t_feat_unq_inv'] = t_feat_unq_inv
+        batch_dict['toxel_features'] = toxel_features
+        batch_dict['t_feat_unq_cnt'] = t_feat_unq_cnt
+        z_pillar_feat, occupied_mask = self.zpillar_model(batch_dict)
+        features = self.shared_mlps(features)  # (1, C, L)
+        features = features.transpose(1, 0).contiguous()
 
-        group_features = self.shared_mlps(group_features)  # (1, C, L)
-        group_features = group_features.transpose(1, 0).contiguous()
-
-        pillar_features = scatter_max(group_features, pillar_set_indices, pillar_indices.shape[0])   # (C, M)
+        pillar_features = scatter_max(features, unq_inv, points_coords.shape[0])   # (C, M)
         pillar_features = pillar_features.transpose(1, 0)   # (M, C)
-
-        return spconv.SparseConvTensor(pillar_features, pillar_indices, (self.bev_height, self.bev_width), B)
+        pillar_features[occupied_mask] = pillar_features[occupied_mask] + z_pillar_feat
+        return spconv.SparseConvTensor(pillar_features, points_coords, (self.bev_height, self.bev_width), B)
 
 
 class FGPillarMaxPooling(nn.Module):
